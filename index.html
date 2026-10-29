@@ -1,9 +1,13 @@
 <!doctype html>
 <html lang="ru">
-<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- Telegram Mini App -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- AdsGram: реклама за награду -->
+<script>window.__AD_NETWORK = "adsgram";</script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <title>Фуглер-Кликер</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1279,6 +1283,19 @@ body {
 };
 var ASSETS = window.ASSETS;</script>
 <script>
+/* ---------- AdsGram: реклама в Telegram Mini App ----------
+   Библиотека sad.min.js подключена в <head> только в сборке для Telegram.
+   Если её нет (сборка для Яндекс Игр, файл на компьютере) или она не загрузилась —
+   AdController = null, и игра продолжает работать без падения. */
+const AdController = (() => {
+  try {
+    return window.Adsgram ? window.Adsgram.init({ blockId: "56678" }) : null;
+  } catch (e) {
+    console.warn('AdsGram не запустился:', e);
+    return null;
+  }
+})();
+
 /* ---------- 0. GRAPHICS: картинки с запасным эмодзи ----------
    Все PNG/JPG лежат в корне рядом с index.html.
    pic(src, emoji, cls) рисует <img>; если файл не нашёлся,
@@ -3013,6 +3030,8 @@ const Platform = {
   markReady() {
     this.loaded = true;
     try { this.ysdk?.features?.LoadingAPI?.ready(); } catch (e) { /* ничего */ }
+    // Telegram Mini App: сообщить, что игра готова, и развернуть на всю высоту
+    try { window.Telegram?.WebApp?.ready(); window.Telegram?.WebApp?.expand(); } catch (e) { /* не в Telegram */ }
     this.syncGameplay();
   },
 
@@ -3063,9 +3082,29 @@ const Ads = {
   busy: false,
   // Возвращает true, если просмотр засчитан и надо выдать награду
   showRewarded() {
+    // Telegram: реклама AdsGram. Награда — только если досмотрел (then), иначе — нет (catch)
+    if (AdController) {
+      if (this.busy) return Promise.resolve(false);
+      this.busy = true;
+      Pause.set('ad', true);                   // звук и игра на паузе, пока идёт реклама
+      return AdController.show().then((result) => {
+        return !(result && result.done === false);
+      }).catch((result) => {
+        console.log("Реклама закрыта раньше времени или ошибка", result);
+        return false;
+      }).finally(() => {
+        this.busy = false;
+        Pause.set('ad', false);
+      });
+    }
     return new Promise((resolve) => {
       if (this.busy) return resolve(false);
       const adv = Platform.ysdk?.adv;
+      // Сборка для Telegram, но AdsGram не загрузился — бесплатно награду не даём
+      if (!adv && window.__AD_NETWORK === 'adsgram') {
+        UI.showToast('Реклама сейчас недоступна, попробуй позже');
+        return resolve(false);
+      }
       if (!adv) {
         // Вне Яндекс Игр рекламы нет — для тестов награда выдаётся сразу
         UI.showToast('Тестовый режим: настоящая реклама будет только на Яндекс Играх');
@@ -3086,8 +3125,30 @@ const Ads = {
     });
   },
   async watchForButtons() {
+    if (AdController) {
+      if (this.busy) return;
+      this.busy = true;
+      Pause.set('ad', true);
+      AdController.show().then((result) => {
+        // игрок досмотрел — начисляем пуговицы и обновляем баланс на экране
+        Actions.addButtons(ADS_REWARD_BUTTONS);      // сама перерисовывает счётчик пуговиц
+        UI.showToast(`+${ADS_REWARD_BUTTONS} пуговиц за просмотр рекламы`);
+        Save.saveGame();
+      }).catch((result) => {
+        console.log("Реклама закрыта раньше времени или ошибка", result);
+        UI.showToast('Награда даётся за полный просмотр рекламы');
+      }).finally(() => {
+        this.busy = false;
+        Pause.set('ad', false);
+      });
+      return;
+    }
     const ok = await this.showRewarded();
-    if (!ok) { UI.showToast('Награда даётся за полный просмотр рекламы'); return; }
+    if (!ok) {
+      // если реклама вообще недоступна, сообщение об этом уже показано — не перебиваем его
+      if (!(window.__AD_NETWORK === 'adsgram' && !AdController)) UI.showToast('Награда даётся за полный просмотр рекламы');
+      return;
+    }
     Actions.addButtons(ADS_REWARD_BUTTONS);
     UI.showToast(`+${ADS_REWARD_BUTTONS} пуговиц за просмотр рекламы`);
     Save.saveGame();
