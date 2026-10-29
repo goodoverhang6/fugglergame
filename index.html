@@ -797,7 +797,6 @@ body {
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.devtools input { user-select: text; -webkit-user-select: text; }
 .game {
   --monster-reserve: 330px;
   height: 100%; min-height: 0; max-width: 1200px; gap: 8px;
@@ -1465,13 +1464,13 @@ const TOYS = [
 const CASES = [
   {
     id: 'forgotten', name: 'Забытая коробка', image: ASSETS['case_1.png'], icon: '📦',
-    currency: 'teeth', price: 5000, refund: 1000,
+    currency: 'teeth', price: 50000, refund: 10000,
     box: ['#9a7a4f', '#5b4430'],
     odds: { common: 0.70, strange: 0.25, creepy: 0.05 },
   },
   {
     id: 'dentist', name: 'Посылка от дантиста', image: ASSETS['case_2.png'], icon: '🦷',
-    currency: 'teeth', price: 100000, refund: 20000,
+    currency: 'teeth', price: 1000000, refund: 200000,
     box: ['#b8b0a0', '#6f6a60'],
     odds: { strange: 0.50, creepy: 0.30, sinister: 0.15, cursed: 0.05 },
   },
@@ -3212,118 +3211,10 @@ async function boot(hotData) {
   if (awaySec > 0) Offline.offer(awaySec);
 }
 
-// Тестовые команды для консоли браузера (F12): Dev.gold(), Dev.buttons(100), Dev.teeth(1e6)
-window.Dev = {
-  gold()        { GoldenButton.spawn(); },
-  buttons(n = 100) { Actions.addButtons(n); },
-  teeth(n = 1e6)   { Actions.addTeeth(n); },
-  save()           { return buildGameState(); },   // посмотреть, что пишется в localStorage
-  // Проверка шансов кейса: Dev.simulate('secret', 10000) → сколько выпало каждой редкости
-  simulate(caseId = 'forgotten', n = 10000) {
-    const c = CASES.find((x) => x.id === caseId);
-    const out = {};
-    for (let i = 0; i < n; i++) { const r = Economy.rollRarity(c); out[r] = (out[r] || 0) + 1; }
-    Object.keys(out).forEach((r) => { out[r] = pct(out[r] / n); });
-    return out;
-  },
-};
-
 // Прогресс переживает обновления страницы-артефакта
 window.claude?.hot?.snapshot?.(() => buildGameState());
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
 </script>
-
-<!-- ===================== DEV TOOLS START =====================
-     Временная панель разработчика для тестов баланса.
-     Чтобы убрать: удалите всё от «DEV TOOLS START» до «DEV TOOLS END».
-     Игровой код от неё не зависит.
-============================================================== -->
-<style>
-.devtools {
-  position: fixed; z-index: 30;
-  left: max(10px, env(safe-area-inset-left, 0px));
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  width: 230px; max-width: calc(100vw - 20px); box-sizing: border-box;
-  background: rgba(10, 7, 5, .88); color: #f2e9d8;
-  border: 2px solid #ff2b2b; border-radius: 6px;
-  box-shadow: 0 0 14px rgba(255, 43, 43, .45);
-  font: 13px/1.3 ui-monospace, Menlo, Consolas, monospace;
-}
-.devtools summary {
-  cursor: pointer; padding: 6px 10px; list-style: none;
-  font-weight: bold; letter-spacing: .12em; color: #ff5a5a;
-}
-.devtools summary::-webkit-details-marker { display: none; }
-.devtools summary::after { content: " ▲"; font-size: 10px; }
-.devtools[open] summary::after { content: " ▼"; }
-.devtools-body { display: grid; gap: 8px; padding: 0 10px 10px; }
-.devtools label { display: grid; gap: 3px; font-size: 12px; color: #c9c1b3; }
-.devtools-row { display: flex; gap: 6px; }
-.devtools input {
-  flex: 1; min-width: 0; padding: 5px 6px; font: inherit;
-  color: #f2e9d8; background: #1d1713; border: 1px solid #6b5a48; border-radius: 3px;
-}
-.devtools button {
-  flex: none; padding: 5px 8px; font: inherit; cursor: pointer;
-  color: #fff; background: #a3191b; border: 1px solid #ff2b2b; border-radius: 3px;
-}
-.devtools button:active { transform: translateY(1px); }
-.devtools input:focus-visible, .devtools button:focus-visible, .devtools summary:focus-visible { outline: 2px solid #ffd34d; outline-offset: 2px; }
-.devtools-msg { min-height: 1.3em; font-size: 11px; color: #a8e063; }
-</style>
-
-<details class="devtools" id="devtools" open>
-  <summary>DEV TOOLS</summary>
-  <div class="devtools-body">
-    <label for="devTeeth">Кол-во зубов
-      <span class="devtools-row">
-        <input type="number" id="devTeeth" min="1" step="1" value="10000000" inputmode="numeric">
-        <button type="button" id="devGiveTeeth">Выдать зубы</button>
-      </span>
-    </label>
-    <label for="devButtons">Кол-во пуговиц
-      <span class="devtools-row">
-        <input type="number" id="devButtons" min="1" step="1" value="300" inputmode="numeric">
-        <button type="button" id="devGiveButtons">Выдать пуговицы</button>
-      </span>
-    </label>
-    <div class="devtools-msg" id="devMsg" aria-live="polite"></div>
-  </div>
-</details>
-
-<script>
-(function devTools() {
-  // В релизе на Яндекс Играх панель скрыта; для тестов там — добавить #dev к адресу
-  const onYandex = /yandex|yastatic/.test(location.hostname);
-  if (onYandex && location.hash !== '#dev') { document.getElementById('devtools').remove(); return; }
-  const msg = document.getElementById('devMsg');
-
-  // Прочитать число из поля: только положительное конечное, иначе null
-  function readAmount(id) {
-    const v = Number(document.getElementById(id).value);
-    return Number.isFinite(v) && v > 0 ? Math.floor(v) : null;
-  }
-
-  // Actions.addTeeth / addButtons сами вызывают UI.render():
-  // обновляются счётчики, доступность покупок, открытые окна и кнопка ребитха
-  function give(inputId, currency) {
-    const amount = readAmount(inputId);
-    if (amount === null) { msg.style.color = '#ff8a73'; msg.textContent = 'Введите число больше нуля'; return; }
-    if (currency === 'teeth') Actions.addTeeth(amount);
-    else Actions.addButtons(amount);
-    msg.style.color = '';
-    msg.textContent = `+${UI.format(amount)} ${currency === 'teeth' ? 'зубов' : 'пуговиц'}`;
-  }
-
-  document.getElementById('devGiveTeeth').addEventListener('click', () => give('devTeeth', 'teeth'));
-  document.getElementById('devGiveButtons').addEventListener('click', () => give('devButtons', 'buttons'));
-  // Enter в поле — то же, что кнопка
-  document.getElementById('devTeeth').addEventListener('keydown', (e) => { if (e.key === 'Enter') give('devTeeth', 'teeth'); });
-  document.getElementById('devButtons').addEventListener('keydown', (e) => { if (e.key === 'Enter') give('devButtons', 'buttons'); });
-})();
-</script>
-<!-- ===================== DEV TOOLS END ===================== -->
-
 
 </body>
 </html>
