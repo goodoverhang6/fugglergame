@@ -959,6 +959,18 @@ body {
   100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -260%) scale(.95) rotate(var(--rot)); }
 }
 
+/* Окно настроек: ползунки громкости */
+.settings-box { max-width: 420px; }
+.vol-row {
+  display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; align-items: center; gap: 12px;
+  margin: 10px 0 14px; position: relative; font-size: 17px; color: var(--bone);
+}
+.vol-row label { font-family: var(--font-display); }
+.vol-row output { text-align: right; font-variant-numeric: tabular-nums; color: var(--mustard); font-family: var(--font-display); }
+.vol-row input[type="range"] { width: 100%; accent-color: var(--mustard); cursor: pointer; height: 26px; touch-action: none; }
+.vol-row input[type="range"]:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
+.settings-note { margin-top: 4px; font-size: 13px; opacity: .75; }
+
 /* 6. Читаемость подписей в карточках улучшений */
 .up-note { color: #3a0d0f; }
 .up-card.is-locked { filter: grayscale(.85) brightness(.78); }
@@ -1034,8 +1046,8 @@ body {
           <span class="rate" id="buttonsRate">шанс 2% / тап</span>
         </div>
       </div>
-      <!-- Вкл/выкл звук (обязательно для публикации) -->
-      <button class="sound-btn" id="soundBtn" type="button" aria-label="Выключить звук" aria-pressed="false" title="Звук включён">🔊</button>
+      <!-- Настройки звука: ползунки «Музыка» и «Звуки» -->
+      <button class="sound-btn" data-menu="settings" type="button" aria-label="Настройки звука" title="Настройки звука">⚙️</button>
     </div>
   </header>
 
@@ -1235,6 +1247,30 @@ body {
   </div>
 </div>
 
+<!-- МОДАЛКА: НАСТРОЙКИ ЗВУКА -->
+<div class="modal" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="mt-settings" hidden>
+  <div class="modal-box settings-box">
+    <div class="modal-head">
+      <h2 class="modal-title" id="mt-settings">Настройки</h2>
+      <button class="modal-close" data-close>Закрыть ✖</button>
+    </div>
+    <div class="vol-row">
+      <label for="volMusic">🎵 Музыка</label>
+      <input type="range" id="volMusic" min="0" max="1" step="0.1" value="0.5">
+      <output id="volMusicVal" for="volMusic">50%</output>
+    </div>
+    <div class="vol-row">
+      <label for="volSfx">🔔 Звуки</label>
+      <input type="range" id="volSfx" min="0" max="1" step="0.1" value="0.8">
+      <output id="volSfxVal" for="volSfx">80%</output>
+    </div>
+    <p class="modal-sub settings-note">Музыка включится после первого нажатия по экрану.</p>
+  </div>
+</div>
+
+<!-- Фоновая музыка (файл bg-music.mp3 рядом с index.html) -->
+<audio id="bgMusic" src="bg-music.mp3" loop preload="auto"></audio>
+
 <div class="toast" id="toast" hidden></div>
 
 <script>window.ASSETS = {
@@ -1331,7 +1367,7 @@ document.querySelectorAll('img[data-fallback]').forEach((img) => {
 });
 
 /* =====================================================================
-   ФУГЛЕР-КЛИКЕР — Спринт 8 (графика: раздел 0 GRAPHICS — pic(), картинки в TOOLS/HELPERS/CASES/TOYS). Ранее: Спринт 7 (звук: раздел 1b AUDIO — playSound, toggleSound, Synth). Ранее: Спринт 6
+   ФУГЛЕР-КЛИКЕР — Спринт 8 (графика: раздел 0 GRAPHICS — pic(), картинки в TOOLS/HELPERS/CASES/TOYS). Звук: раздел 1b AUDIO (playSound, Synth) и 1c MUSIC (фоновая музыка, ползунки громкости). Ранее: Спринт 6
    (рулетка кейсов — модуль Roulette, раздел 7b; сохранения — модуль Save, раздел 12;
     ребитх — REBIRTH в CONFIG, формулы в Economy, сброс в Actions.doRebirth)
    Модули:
@@ -1356,7 +1392,9 @@ const CONFIG = {
   startButtons: 0,
   baseClickPower: 1,
   priceGrowth: 1.15,          // множитель цены за каждую покупку (без престижа)
-  priceGrowthPerRebirth: 0.01, // +0.01 к удорожанию за каждый уровень престижа (1.16, 1.17 … 1.25)
+  priceGrowthPerRebirth: 0.01,
+  skillBasePrice: 100,         // ветка улучшений за пуговицы: цена Lv.1
+  skillPriceGrowth: 2.5,       // каждый следующий уровень навыка ×2.5 // +0.01 к удорожанию за каждый уровень престижа (1.16, 1.17 … 1.25)
   levelsPerStage: 10,         // уровней в одном этапе инструмента
   stageEvolveMult: 2,         // множитель силы клика при эволюции
   milestones: [10, 25, 50, 100], // покупки помощника, на которых доход x2
@@ -1494,7 +1532,7 @@ const CASES = [
   },
   {
     id: 'secret', name: 'Секретный контейнер', image: ASSETS['case_3.png'], icon: '🔒',
-    currency: 'buttons', price: 300, refund: 60,
+    currency: 'buttons', price: 500, refund: 60,
     box: ['#84302f', '#2a0c0e'],
     odds: { sinister: 0.60, cursed: 0.38, nightmare: 0.02 },
   },
@@ -1569,7 +1607,7 @@ const Synth = {
     osc.type = type;
     osc.frequency.setValueAtTime(f1, t);
     osc.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    gain.gain.setValueAtTime(vol, t);
+    gain.gain.setValueAtTime(Math.max(0.0001, vol * State.sfxVolume), t);   // громкость по ползунку «Звуки»
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(gain).connect(ctx.destination);
     osc.start(t);
@@ -1584,7 +1622,8 @@ const SOUND_FALLBACK = new Map([[soundUI, () => Synth.ui()]]);
 
 // Универсальное воспроизведение. fallback — что сыграть, если файл недоступен.
 function playSound(audioElement, fallback = SOUND_FALLBACK.get(audioElement)) {
-  if (State.isSoundMuted || Pause.active) return;   // мут или пауза (вкладка скрыта, реклама)
+  if (State.sfxVolume <= 0 || Pause.active) return;  // звуки на нуле или пауза (вкладка скрыта, реклама)
+  audioElement.volume = State.sfxVolume;
   if (audioElement.failed) { fallback?.(); return; }
   try {
     audioElement.currentTime = 0;
@@ -1606,27 +1645,65 @@ function stopSound(audioElement) {
   try { audioElement.pause(); audioElement.currentTime = 0; } catch (e) { /* ничего */ }
 }
 
-// Вкл/выкл звук: меняет флаг, иконку, сохраняет игру
-function toggleSound() {
-  State.isSoundMuted = !State.isSoundMuted;
-  if (State.isSoundMuted) {
-    stopSound(soundRoulette);
-    stopSound(soundUI);
-  } else {
-    playSound(soundUI);          // короткий звук-подтверждение «звук включён»
-  }
-  updateSoundButton();
-  Save.saveGame();
+/* ---------- 1c. MUSIC: фоновая музыка и ползунки громкости ----------
+   Браузеры запрещают автоплей, поэтому музыка стартует после первого
+   любого нажатия игрока по экрану. Ползунки «Музыка» и «Звуки» — 0..1, шаг 0.1. */
+const bgMusic = document.getElementById('bgMusic');
+const Music = {
+  unlocked: false,              // игрок уже нажимал на экран — браузер разрешил звук
+  // Играть, если можно; иначе — пауза
+  sync() {
+    if (!bgMusic) return;
+    bgMusic.volume = State.musicVolume;
+    if (this.unlocked && State.musicVolume > 0 && !Pause.active) {
+      const p = bgMusic.play();
+      if (p) p.catch(() => {});  // нет файла bg-music.mp3 или браузер не дал — игра идёт без музыки
+    } else {
+      bgMusic.pause();
+    }
+  },
+  pause() { try { bgMusic?.pause(); } catch (e) { /* ничего */ } },
+  // Первое нажатие по экрану — включить музыку
+  unlockOnFirstTap() {
+    const unlock = () => {
+      if (this.unlocked) return;
+      this.unlocked = true;
+      this.sync();
+      document.removeEventListener('pointerdown', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
+    };
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('keydown', unlock, true);
+  },
+};
+
+// Применить громкость к музыке и звукам (вызывается при загрузке и при движении ползунков)
+function applyVolumes() {
+  soundUI.volume = State.sfxVolume;
+  soundRoulette.volume = State.sfxVolume;
+  if (State.sfxVolume <= 0) { stopSound(soundRoulette); stopSound(soundUI); }
+  Music.sync();
 }
 
-function updateSoundButton() {
-  const btn = document.getElementById('soundBtn');
-  if (!btn) return;
-  const muted = State.isSoundMuted;
-  btn.textContent = muted ? '🔇' : '🔊';
-  btn.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
-  btn.setAttribute('aria-pressed', String(muted));
-  btn.title = muted ? 'Звук выключен' : 'Звук включён';
+// Ползунки в окне «Настройки»
+function bindVolumeSliders() {
+  const pairs = [['volMusic', 'musicVolume', 'volMusicVal'], ['volSfx', 'sfxVolume', 'volSfxVal']];
+  pairs.forEach(([id, key, labelId]) => {
+    const input = document.getElementById(id);
+    const label = document.getElementById(labelId);
+    const show = () => { label.textContent = Math.round(State[key] * 100) + '%'; };
+    input.value = State[key];
+    show();
+    input.addEventListener('input', () => {
+      State[key] = Math.min(1, Math.max(0, parseFloat(input.value) || 0));
+      show();
+      applyVolumes();
+    });
+    input.addEventListener('change', () => {
+      if (key === 'sfxVolume') playSound(soundUI);   // услышать новую громкость
+      Save.saveGame();
+    });
+  });
 }
 
 /* ---------- 2. STATE ---------- */
@@ -1639,7 +1716,8 @@ const State = {
   skills: { crit: 0, sticky: 0, eye: 0 }, // уровни навыков (0..5)
   collection: {},                      // открытые Фуглеры: { [toyId]: true }
   activeFuggler: null,                 // id Фуглера из коллекции, стоящего на экране (null — Зубастый Бракованец)
-  isSoundMuted: false,                 // звук выключен (настройка, переживает ребитх и сброс)
+  musicVolume: 0.5,                    // громкость фоновой музыки 0..1 (настройка, переживает ребитх и сброс)
+  sfxVolume: 0.8,                      // громкость звуков 0..1
   rebirthLevel: 0,                     // уровень престижа
   secretCasesOpened: 0,                // Секретных контейнеров открыто в этой жизни
   // Кэш производных значений (пересчитывается в Economy.recalc)
@@ -1778,9 +1856,11 @@ const Economy = {
     const s = this.skill(id);
     return lvl > 0 ? s.levels[lvl - 1] : s.base;
   },
+  // Цена навыка за пуговицы: Lv.1 = 100, каждый следующий уровень ×2.5 → 100, 250, 625, 1563, 3906
   skillPrice(id, lvl = State.skills[id]) {
     const s = this.skill(id);
-    return lvl < s.levels.length ? s.levels[lvl].price : Infinity;
+    if (lvl >= s.levels.length) return Infinity;
+    return Math.round(CONFIG.skillBasePrice * Math.pow(CONFIG.skillPriceGrowth, lvl));
   },
   critChance()   { return this.skillValue('crit').chance; },
   // Итоговый шанс пуговицы = база/«Липкие руки» + бонус коллекции + бонус ребитха
@@ -2637,7 +2717,7 @@ const Roulette = {
       if (L.track && L.step) {
         const x = new DOMMatrixReadOnly(getComputedStyle(L.track).transform).m41;
         const idx = Math.floor((-x + L.viewport / 2) / L.step);
-        if (lastIdx !== null && idx !== lastIdx && !State.isSoundMuted && !Pause.active) Synth.tick();
+        if (lastIdx !== null && idx !== lastIdx && State.sfxVolume > 0 && !Pause.active) Synth.tick();
         lastIdx = idx;
       }
       requestAnimationFrame(loop);
@@ -2655,6 +2735,7 @@ const Menu = {
     clickPower: () => Modals.open('clickPower'),
     passive:    () => Modals.open('passive'),
     tree:       () => Modals.open('tree'),
+    settings:   () => Modals.open('settings'),
     // Своё окно подтверждения вместо confirm(): внутри артефакта confirm() не показывается
     reset:      () => Modals.open('reset'),
     rebirth:    () => Modals.open('rebirth'),
@@ -2759,7 +2840,7 @@ function bindEvents() {
     btn.addEventListener('click', () => Menu.open(btn.dataset.menu));
   });
   document.getElementById('resetConfirm').addEventListener('click', () => Save.hardReset());
-  document.getElementById('soundBtn').addEventListener('click', toggleSound);
+  bindVolumeSliders();
   document.getElementById('offTakeBtn').addEventListener('click', () => { Offline.claim(1); Modals.close(); });
   document.getElementById('offDoubleBtn').addEventListener('click', () => Offline.claimDouble());
   document.getElementById('rebirthConfirm').addEventListener('click', () => Actions.doRebirth());
@@ -2807,7 +2888,8 @@ function buildGameState() {
     secretCasesOpened: State.secretCasesOpened,
     rebirthTeethMult: Economy.rebirthMult(),
     nextRebirthPrice: Economy.nextRebirth()?.price ?? null,
-    isSoundMuted: State.isSoundMuted,
+    musicVolume: State.musicVolume,
+    sfxVolume: State.sfxVolume,
     activeFuggler: State.activeFuggler,
     rebirthButtonBonus: Economy.rebirthButtonBonus(),
   };
@@ -2861,7 +2943,10 @@ function applyGameState(gs) {
   State.activeFuggler = typeof gs.activeFuggler === 'string' && State.collection[gs.activeFuggler]
     ? gs.activeFuggler : null;
 
-  if (typeof gs.isSoundMuted === 'boolean') State.isSoundMuted = gs.isSoundMuted;
+  const vol = (v) => (typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+  if (vol(gs.musicVolume) !== null) State.musicVolume = vol(gs.musicVolume);
+  if (vol(gs.sfxVolume) !== null) State.sfxVolume = vol(gs.sfxVolume);
+  else if (gs.isSoundMuted === true) State.sfxVolume = 0;    // старые сохранения: «звук выключен» → звуки 0
   if (num(gs.rebirthLevel) !== null) State.rebirthLevel = Math.min(Math.floor(gs.rebirthLevel), Economy.maxRebirth);
   if (num(gs.secretCasesOpened) !== null) State.secretCasesOpened = Math.floor(gs.secretCasesOpened);
 
@@ -2956,7 +3041,8 @@ function start(saved, fromHot = false) {
   Modals.build();
   bindEvents();
   UI.render();           // обновить весь интерфейс под загруженные данные
-  updateSoundButton();   // иконка 🔊/🔇 по сохранённой настройке
+  applyVolumes();        // громкость музыки и звуков из сохранения
+  Music.unlockOnFirstTap();
   Loop.start();
   GoldenButton.schedule();
   Save.startAutosave();
@@ -2976,9 +3062,11 @@ const Pause = {
     if (this.active === was) return;
     if (this.active) {
       stopSound(soundRoulette); stopSound(soundUI);
+      Music.pause();
       try { Synth.ctx?.suspend(); } catch (e) { /* нет звука — нечего глушить */ }
-    } else if (!State.isSoundMuted) {
+    } else {
       try { Synth.ctx?.resume(); } catch (e) { /* ничего */ }
+      Music.sync();
     }
     Platform.syncGameplay();
   },
