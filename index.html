@@ -1187,7 +1187,7 @@ body.rage-on .rage-vignette { opacity: 1; animation: ragePulse 1s ease-in-out in
       <h2 class="modal-title" id="mt-click">Доход за клик</h2>
       <button class="modal-close" data-close>Закрыть ✖</button>
     </div>
-    <p class="modal-sub">Сила клика: <b id="mClickPower">1</b> · Множитель (коллекция × престиж): <b id="mClickMult">×1</b> · Каждые 10 уровней — новый инструмент с бо́льшим приростом; последний качается бесконечно. Каждый уровень дороже предыдущего в 1.75 раза.<span class="price-note" data-price-note></span></p>
+    <p class="modal-sub">Сила клика: <b id="mClickPower">1</b> · Множитель (коллекция × престиж): <b id="mClickMult">×1</b> · Все инструменты доступны сразу и качаются без предела; каждый следующий уровень инструмента дороже в 1.75 раза.<span class="price-note" data-price-note></span></p>
     <div class="upgrade-grid" id="gridClick"></div>
   </div>
 </div>
@@ -1464,8 +1464,6 @@ const CONFIG = {
   priceGrowthPerRebirth: 0,   // престиж удорожание не меняет: строго ×1.75
   skillBasePrice: 100,         // ветка улучшений за пуговицы: цена Lv.1
   skillPriceGrowth: 2.5,       // каждый следующий уровень навыка ×2.5 // +0.01 к удорожанию за каждый уровень престижа (1.16, 1.17 … 1.25)
-  levelsPerStage: 10,         // уровней в одном этапе инструмента
-  stageEvolveMult: 1,         // удвоения при эволюции больше нет (×1 — только смена инструмента)
   milestones: [],             // удвоений дохода помощников больше нет
   milestoneMult: 2,
   tickMs: 1000,               // период пассивного дохода
@@ -1780,7 +1778,7 @@ function bindVolumeSliders() {
 const State = {
   teeth: CONFIG.startTeeth,
   buttons: CONFIG.startButtons,
-  clickLevel: 0,                       // всего куплено уровней инструмента (0..60)
+  clickTools: TOOLS.map(() => 0),      // уровни каждого инструмента «Дохода за клик» (без предела, как у помощников)
   helpers: HELPERS.map(() => 0),       // сколько куплено каждого помощника
   skills: { crit: 0, sticky: 0, eye: 0 }, // уровни навыков (0..5)
   collection: {},                      // открытые Фуглеры: { [toyId]: true }
@@ -1798,14 +1796,14 @@ const State = {
 
 /* ---------- 3. ECONOMY ---------- */
 const Economy = {
-  // Прокачка клика бесконечная: после 5 этапов «Челюсть Мегалодона» качается без предела.
-  // Каждые 10 уровней меняется инструмент (больше прирост за уровень), удвоений ×2 нет.
-  maxClickLevel: Infinity,
-  lastStageStart: (TOOLS.length - 1) * CONFIG.levelsPerStage,
-
-  // --- Инструмент ---
-  // Индекс этапа для заданного общего уровня
-  stageOf(level) { return Math.min(Math.floor(level / CONFIG.levelsPerStage), TOOLS.length - 1); },
+  // «Доход за клик» устроен как «Пассивный доход»: все 6 инструментов доступны сразу,
+  // каждый качается без предела, каждый следующий уровень инструмента дороже в 1.75 раза.
+  clickLevelTotal(tools = State.clickTools) { return tools.reduce((a, n) => a + n, 0); },
+  // Самый сильный инструмент, который уже есть у игрока (для подписи на главном экране)
+  bestTool(tools = State.clickTools) {
+    for (let i = tools.length - 1; i >= 0; i--) if (tools[i] > 0) return i;
+    return 0;
+  },
 
   // Цена следующего уровня: базовая цена этапа * 1.15^(уровень внутри этапа)
   // --- Удорожание от престижа ---
@@ -1819,23 +1817,15 @@ const Economy = {
     return CONFIG.priceGrowth + CONFIG.priceGrowthPerRebirth * lvl;
   },
 
-  // Цена уровня: каждый следующий ровно в 1.75 раза дороже предыдущего — сквозь все инструменты,
-  // без предела по уровню (иначе при эволюции цена падала бы до базовой цены нового инструмента)
-  clickPrice(level = State.clickLevel) {
-    const price = Math.round(TOOLS[0].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), level));
+  // Цена следующего уровня инструмента i: базовая цена × престиж × 1.75^(уже куплено)
+  clickPrice(i, owned = State.clickTools[i]) {
+    const price = Math.round(TOOLS[i].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), owned));
     return Number.isFinite(price) ? price : Infinity;
   },
 
-  // Сила клика для заданного уровня: каждый уровень даёт +perLevel своего этапа,
-  // каждый завершённый этап (10 уровней) умножает итог на x2.
-  clickPowerAt(level) {
-    let power = CONFIG.baseClickPower;
-    for (let i = 0; i < level; i++) {
-      const stage = this.stageOf(i);
-      power += TOOLS[stage].perLevel;
-      if ((i + 1) % CONFIG.levelsPerStage === 0) power *= CONFIG.stageEvolveMult;
-    }
-    return power;
+  // Сила клика: 1 + сумма (уровень инструмента × его прирост за уровень). Без удвоений.
+  clickPowerAt(tools = State.clickTools) {
+    return tools.reduce((power, n, i) => power + n * TOOLS[i].perLevel, CONFIG.baseClickPower);
   },
 
   // --- Помощники ---
@@ -1943,7 +1933,7 @@ const Economy = {
   // Пересчитать кэш производных значений
   recalc() {
     // Доход за клик уже с множителем ребитха (крит ×5 считается от этого значения)
-    State.clickPower = Math.round(this.clickPowerAt(State.clickLevel) * this.clickMult());
+    State.clickPower = Math.round(this.clickPowerAt() * this.clickMult());
     State.passiveIncome = this.totalPassive();
   },
 };
@@ -2011,7 +2001,7 @@ const UI = {
       });
     }
     const deals = {
-      clickPower: State.clickLevel < Economy.maxClickLevel && State.teeth >= Economy.clickPrice(),
+      clickPower: TOOLS.some((_, i) => State.teeth >= Economy.clickPrice(i)),
       passive: HELPERS.some((_, i) => State.teeth >= Economy.helperPrice(i)),
       tree: SKILLS.some((s) => State.skills[s.id] < s.levels.length && State.buttons >= Economy.skillPrice(s.id)),
       cases: CASES.some((c) => State[c.currency] >= c.price),
@@ -2028,7 +2018,7 @@ const UI = {
     document.querySelectorAll('[data-price-note]').forEach((el) => { if (el.textContent !== note) el.textContent = note; });
     this.renderMonster();
     this.renderDeals();
-    const toolName = TOOLS[Economy.stageOf(State.clickLevel)].name;
+    const toolName = TOOLS[Economy.bestTool()].name;
     this.el.teethValue.textContent   = this.format(State.teeth);
     this.el.teethRate.textContent    = this.format(State.passiveIncome) + ' / сек';
     this.el.buttonsValue.textContent = this.format(State.buttons);
@@ -2046,7 +2036,7 @@ const UI = {
     this.el.rebirthBtn.hidden = !Economy.canRebirth() && Modals.current !== 'rebirth';
     this.el.clickPower.textContent  = this.format(State.clickPower);
     this.el.passive.textContent      = this.format(State.passiveIncome);
-    this.el.clickSub.textContent     = `${toolName} · ур. ${State.clickLevel}`;
+    this.el.clickSub.textContent     = `${toolName} · ур. ${Economy.clickLevelTotal()}`;
     this.el.toolHint.textContent     = `Инструмент: ${toolName}`;
     Modals.refresh();                // обновить открытую модалку (цены, disabled)
   },
@@ -2198,7 +2188,7 @@ const Actions = {
 
     State.buttons += reward;                      // 1. выдать пуговицы
     State.teeth = 0;                              // 2. сбросить зубы и прокачку
-    State.clickLevel = 0;
+    State.clickTools = TOOLS.map(() => 0);
     State.helpers = HELPERS.map(() => 0);
     State.collection = {};                        // 3. сжечь коллекцию
     State.activeFuggler = null;                   //    на экран возвращается Зубастый Бракованец
@@ -2236,19 +2226,16 @@ const Actions = {
   },
 
   // Купить следующий уровень инструмента
-  buyClickLevel() {
-    const price = Economy.clickPrice();
+  // Купить уровень инструмента i (без предела, как помощника)
+  buyClickLevel(i) {
+    if (!TOOLS[i]) return;
+    const price = Economy.clickPrice(i);
     if (!Number.isFinite(price) || !this.spend('teeth', price)) return;
     playSound(soundUI);                           // звук покупки уровня инструмента
-    const prevStage = Economy.stageOf(State.clickLevel);
-    State.clickLevel++;
+    State.clickTools[i]++;
     Economy.recalc();
     UI.render();
-    // Эволюция: только что закрыли 10-й уровень этапа
-    if (State.clickLevel % CONFIG.levelsPerStage === 0) {
-      const next = TOOLS[prevStage + 1];
-      if (next) UI.showToast(`Эволюция! ${TOOLS[prevStage].name} → ${next.name}: +${UI.format(next.perLevel)} к клику за уровень`);
-    }
+    if (State.clickTools[i] === 1 && i > 0) UI.showToast(`Новый инструмент: ${TOOLS[i].name}! +${UI.format(TOOLS[i].perLevel)} к клику за уровень`);
   },
 
   // Купить одного помощника
@@ -2448,7 +2435,7 @@ const Modals = {
         <div class="up-top">
           <div class="up-icon has-img" aria-hidden="true">${pic(item.image, item.icon)}</div>
           <div>
-            <div class="up-tag">${kind === 'click' ? 'Этап ' + (i + 1) + (i === TOOLS.length - 1 ? ' · без предела' : '') : 'Помощник'}</div>
+            <div class="up-tag">${kind === 'click' ? 'Инструмент' : 'Помощник'}</div>
             <div class="up-name">${item.name}</div>
           </div>
         </div>
@@ -2491,7 +2478,8 @@ const Modals = {
 
     // Покупки
     gClick.addEventListener('click', (e) => {
-      if (e.target.closest('[data-f="buy"]')) Actions.buyClickLevel();
+      const card = e.target.closest('.up-card');
+      if (card && e.target.closest('[data-f="buy"]')) Actions.buyClickLevel(+card.dataset.i);
     });
     gPass.addEventListener('click', (e) => {
       const card = e.target.closest('.up-card');
@@ -2591,46 +2579,24 @@ const Modals = {
   },
 
   refreshClick() {
-    const lvl = State.clickLevel;
-    const per = CONFIG.levelsPerStage;
-    const curStage = Economy.stageOf(lvl);
-    const last = TOOLS.length - 1;
+    const cm = Economy.clickMult();
     document.getElementById('mClickPower').textContent = UI.format(State.clickPower);
-    document.getElementById('mClickMult').textContent = '×' + UI.formatMult(Economy.clickMult());
+    document.getElementById('mClickMult').textContent = '×' + UI.formatMult(cm);
 
     this.cards.click.forEach(({ card, f }, i) => {
-      const done = i < curStage, current = i === curStage, locked = i > curStage;
-      const endless = i === last;                 // последний этап — без предела
-      const inStage = done ? per : current ? lvl - i * per : 0;
-      card.classList.toggle('is-done', done);
-      card.classList.toggle('is-current', current);
-      card.classList.toggle('is-locked', locked);
-      f.level.textContent = endless ? `${inStage} / ∞` : `${inStage} / ${per}`;
-      f.bar.style.width = ((endless ? inStage % per : inStage) / per * 100) + '%';
-
-      if (current) {
-        const price = Economy.clickPrice();
-        const gain = Math.round(Economy.clickPowerAt(lvl + 1) * Economy.clickMult()) - State.clickPower;
-        f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
-        f.next.textContent = '+' + UI.format(gain) + ' к клику';
-        f.note.textContent = endless
-          ? 'Качается без предела'
-          : (inStage === per - 1 ? `Следующий уровень: эволюция в «${TOOLS[i + 1].name}»` : `До эволюции: ${per - inStage} ур.`);
-        f.price.textContent = UI.format(price);
-        f.buy.disabled = State.teeth < price;
-      } else if (done) {
-        f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
-        f.next.textContent = '—';
-        f.note.textContent = 'Пройдено';
-        f.price.textContent = 'Готово';
-        f.buy.disabled = true;
-      } else {
-        f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
-        f.next.textContent = '—';
-        f.note.textContent = `Откроется после «${TOOLS[i - 1].name}»`;
-        f.price.textContent = UI.format(Economy.clickPrice(i * CONFIG.levelsPerStage));
-        f.buy.disabled = true;
-      }
+      const owned = State.clickTools[i];
+      const price = Economy.clickPrice(i);
+      const next = State.clickTools.map((n, k) => (k === i ? n + 1 : n));
+      const gain = Math.round(Economy.clickPowerAt(next) * cm) - State.clickPower;
+      card.classList.toggle('is-current', owned > 0);
+      card.classList.remove('is-done', 'is-locked');
+      f.level.textContent = owned + ' ур.';
+      f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
+      f.next.textContent = '+' + UI.format(gain) + ' к клику';
+      f.bar.parentElement.hidden = true;           // предела нет — полоска до конца этапа не нужна
+      f.note.textContent = owned > 0 ? 'Покупка без предела' : '';
+      f.price.textContent = UI.format(price);
+      f.buy.disabled = State.teeth < price;
     });
   },
 
@@ -2931,11 +2897,10 @@ function buildGameState() {
     teeth: State.teeth,
     buttons: State.buttons,
     click: {
-      level: State.clickLevel,
-      stage: Economy.stageOf(State.clickLevel) + 1,
-      toolName: TOOLS[Economy.stageOf(State.clickLevel)].name,
+      tools: TOOLS.map((t, i) => ({ id: t.id, level: State.clickTools[i], nextPrice: Economy.clickPrice(i) })),
+      level: Economy.clickLevelTotal(),
+      toolName: TOOLS[Economy.bestTool()].name,
       clickPower: State.clickPower,
-      nextPrice: Economy.clickPrice(),
     },
     helpers: HELPERS.map((h, i) => ({
       id: h.id,
@@ -2982,8 +2947,19 @@ function applyGameState(gs) {
   if (num(gs.teeth) !== null) State.teeth = gs.teeth;
   if (num(gs.buttons) !== null) State.buttons = gs.buttons;
 
-  const lvl = num(gs.click?.level ?? gs.clickLevel);          // поддержка старого формата
-  if (lvl !== null) State.clickLevel = Math.min(Math.floor(lvl), Economy.maxClickLevel);
+  if (Array.isArray(gs.click?.tools)) {
+    State.clickTools = TOOLS.map((t, i) => {
+      const e = gs.click.tools.find((x) => x && x.id === t.id) ?? gs.click.tools[i];
+      return Math.floor(num(typeof e === 'object' ? e?.level : e) ?? 0);
+    });
+  } else {
+    // Старый формат: один общий уровень (по 10 на инструмент, остаток — Челюсти Мегалодона)
+    const lvl = num(gs.click?.level ?? gs.clickLevel);
+    if (lvl !== null) {
+      const L = Math.floor(lvl), last = TOOLS.length - 1;
+      State.clickTools = TOOLS.map((_, i) => i < last ? Math.min(10, Math.max(0, L - 10 * i)) : Math.max(0, L - 10 * last));
+    }
+  }
 
   if (Array.isArray(gs.helpers)) {
     State.helpers = HELPERS.map((h, i) => {
@@ -3086,7 +3062,7 @@ const Save = {
 
     State.teeth = CONFIG.startTeeth;
     State.buttons = CONFIG.startButtons;
-    State.clickLevel = 0;
+    State.clickTools = TOOLS.map(() => 0);
     State.helpers = HELPERS.map(() => 0);
     State.skills = { crit: 0, sticky: 0, eye: 0 };
     State.collection = {};
