@@ -971,6 +971,65 @@ body {
 .vol-row input[type="range"]:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
 .settings-note { margin-top: 4px; font-size: 13px; opacity: .75; }
 
+/* ================= «БЕШЕНСТВО» ================= */
+.card-btn.tag--rage { --tag-1: #d4581f; --tag-2: #7a1b0c; --tag-ink: var(--bone); --tag-sub: #ffe1c9; }
+.tag--rage .btn-title { text-shadow: 2px 2px 0 rgba(0, 0, 0, .45); }
+.card-btn.tag .stat--ad.stat--ad { white-space: nowrap; }
+/* таймер поверх карточки: отсчёт буста или перезарядки */
+.rage-timer {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; pointer-events: none;
+  font-family: var(--font-display); font-size: 30px; color: #fff6e0; font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill;
+  text-shadow: 0 0 12px rgba(255, 120, 30, .9), 3px 4px 0 rgba(0, 0, 0, .5);
+}
+/* во время буста — карточка пылает */
+.card-btn.tag.rage-active { animation: rageCard .8s ease-in-out infinite; }
+@keyframes rageCard { 50% { transform: translateY(-2px) scale(1.03); } }
+.card-btn.tag.rage-active::before { box-shadow: inset 0 0 22px rgba(255, 200, 60, .55), inset 0 0 6px rgba(255, 255, 255, .4); }
+/* перезарядка — лёгкое затемнение и таймер */
+.card-btn.tag.rage-cooldown::before { background: linear-gradient(rgba(12, 6, 3, .55), rgba(12, 6, 3, .55)), var(--noise), linear-gradient(170deg, var(--tag-1), var(--tag-2)); }
+.card-btn.tag.rage-cooldown .tag-art, .card-btn.tag.rage-cooldown .btn-text, .card-btn.tag.rage-cooldown .stat { opacity: .3; }
+/* во время буста подпись приглушена, чтобы цифры таймера читались */
+.card-btn.tag.rage-active .btn-text, .card-btn.tag.rage-active .stat { opacity: .2; }
+.card-btn.tag.rage-cooldown .rage-timer { font-size: 22px; color: var(--bone); text-shadow: 2px 3px 0 rgba(0, 0, 0, .55); }
+
+/* неоновая красно-оранжевая рамка по краям экрана */
+.rage-vignette {
+  position: fixed; inset: 0; z-index: 35; pointer-events: none; opacity: 0; transition: opacity .35s;
+  border: 3px solid rgba(255, 140, 40, .9);
+  box-shadow: inset 0 0 14px 3px rgba(255, 90, 20, .8), inset 0 0 38px 6px rgba(255, 30, 0, .28), 0 0 12px rgba(255, 90, 20, .8);
+}
+body.rage-on .rage-vignette { opacity: 1; animation: ragePulse 1s ease-in-out infinite; }
+@keyframes ragePulse {
+  50% { border-color: rgba(255, 200, 80, 1); box-shadow: inset 0 0 22px 6px rgba(255, 150, 40, .95), inset 0 0 56px 10px rgba(255, 40, 0, .4), 0 0 18px rgba(255, 120, 30, 1); }
+}
+/* лёгкая тряска на тап */
+.stage.rage-tap { animation: rageTap .14s linear; }
+@keyframes rageTap { 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, -1px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-btn.tag.rage-active, body.rage-on .rage-vignette, .stage.rage-tap { animation: none; }
+}
+
+/* ===== телефон: верхний ряд 3 бирки, нижний ряд 4 бирки в одну линию ===== */
+@media (max-width: 700px) {
+  .shelf { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 8px; }
+  .shelf > nav.col > .card-btn { grid-column: span 4; }
+  .shelf > aside.col > .card-btn { grid-column: span 3; }
+  /* узкие бирки нижнего ряда: меньше картинка и шрифт, чтобы 4 штуки влезли ровно */
+  .shelf > aside.col > .card-btn.tag { padding: 11px 3px 9px; gap: 3px; }
+  .shelf > aside.col > .card-btn.tag .tag-art { width: 34px; height: 34px; }
+  .shelf > aside.col > .card-btn.tag .btn-title { font-size: 11.5px; line-height: 1.08; overflow-wrap: anywhere; hyphens: auto; }
+  .shelf > aside.col > .card-btn.tag .stat { top: 3px; right: 3px; font-size: 11px; padding: 0 4px; }
+  .shelf > aside.col > .card-btn.has-deal::after { width: 18px; height: 18px; font-size: 12px; top: -7px; right: -4px; }
+  .rage-timer { font-size: 20px; }
+  .card-btn.tag.rage-cooldown .rage-timer { font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .shelf > aside.col > .card-btn.tag .btn-title { font-size: 10.5px; }
+  .shelf > aside.col > .card-btn.tag .tag-art { width: 30px; height: 30px; }
+}
+
 /* 6. Читаемость подписей в карточках улучшений */
 .up-note { color: #3a0d0f; }
 .up-card.is-locked { filter: grayscale(.85) brightness(.78); }
@@ -1104,6 +1163,14 @@ body {
         <span class="tag-art tag-art--svg"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M50 15 C 63 23, 58 41, 40 42 S 16 47, 23 60" fill="none" stroke="#1a1410" stroke-width="7" stroke-linecap="round"/><path d="M50 15 C 63 23, 58 41, 40 42 S 16 47, 23 60" fill="none" stroke="#a3272b" stroke-width="3.5" stroke-linecap="round"/><path d="M9 57 L45 14 Q51 7 55 10 Q58 14 52 20 Z" fill="#d9d2c2" stroke="#1a1410" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 49 L44 16" stroke="#fffbe9" stroke-width="1.5" stroke-linecap="round" opacity=".8"/><ellipse cx="50.5" cy="14.5" rx="1.8" ry="4" transform="rotate(42 50.5 14.5)" fill="#1a1410"/></svg></span>
         <span class="btn-text"><span class="btn-title">Ветка улучшений</span><span class="btn-sub">Перешить монстра</span></span>
       </button>
+      <!-- «Бешенство»: реклама → клик ×2 на 60 сек, потом перезарядка 3 мин -->
+      <button class="card-btn tag tag--rage" data-menu="rage" id="rageBtn" aria-describedby="rageTimer">
+        <span class="tag-pin" aria-hidden="true"></span>
+        <span class="tag-art"><img src="beshenstvo.png" alt="" data-fallback="😡" draggable="false"></span>
+        <span class="btn-text"><span class="btn-title">Бешенство</span><span class="btn-sub">Реклама: клик ×2 на 60 сек</span></span>
+        <span class="stat stat--ad" aria-label="реклама, награда: клик ×2">▶ ×2</span>
+        <span class="rage-timer" id="rageTimer" aria-live="polite" hidden></span>
+      </button>
     </aside>
   </main>
 
@@ -1120,7 +1187,7 @@ body {
       <h2 class="modal-title" id="mt-click">Доход за клик</h2>
       <button class="modal-close" data-close>Закрыть ✖</button>
     </div>
-    <p class="modal-sub">Сила клика: <b id="mClickPower">1</b> · Множитель (коллекция × престиж): <b id="mClickMult">×1</b> · Каждые 10 уровней инструмент эволюционирует и удваивает силу клика; последний качается бесконечно.<span class="price-note" data-price-note></span></p>
+    <p class="modal-sub">Сила клика: <b id="mClickPower">1</b> · Множитель (коллекция × престиж): <b id="mClickMult">×1</b> · Каждые 10 уровней — новый инструмент с бо́льшим приростом; последний качается бесконечно. Каждый уровень дороже предыдущего в 1.75 раза.<span class="price-note" data-price-note></span></p>
     <div class="upgrade-grid" id="gridClick"></div>
   </div>
 </div>
@@ -1132,7 +1199,7 @@ body {
       <h2 class="modal-title" id="mt-passive">Пассивный доход</h2>
       <button class="modal-close" data-close>Закрыть ✖</button>
     </div>
-    <p class="modal-sub">Всего: <b id="mPassive">0</b> зубов/сек · Множитель престижа: <b id="mPassiveMult">×1</b> · На 10, 25, 50 и 100 покупке доход помощника удваивается навсегда.<span class="price-note" data-price-note></span></p>
+    <p class="modal-sub">Всего: <b id="mPassive">0</b> зубов/сек · Множитель престижа: <b id="mPassiveMult">×1</b> · Помощников можно покупать без предела, каждый следующий дороже в 1.75 раза.<span class="price-note" data-price-note></span></p>
     <div class="upgrade-grid" id="gridPassive"></div>
   </div>
 </div>
@@ -1187,7 +1254,6 @@ body {
       <dt>Множитель зубов</dt><dd id="rbMult">×1 → ×5</dd>
       <dt>Бонус к шансу пуговиц</dt><dd id="rbBtn">+0% → +1%</dd>
       <dt>Цены прокачки</dt><dd id="rbPrices">×1 → ×3</dd>
-      <dt>Удорожание за уровень</dt><dd id="rbGrowth">×1.15 → ×1.16</dd>
       <dt>Секретных контейнеров открыто</dt><dd id="rbCases">0</dd>
     </dl>
     <div class="reset-actions">
@@ -1270,6 +1336,9 @@ body {
 
 <!-- Фоновая музыка (файл bg-music.mp3 рядом с index.html) -->
 <audio id="bgMusic" src="bg-music.mp3" loop preload="auto"></audio>
+
+<!-- Неоновая рамка по краям экрана на время «Бешенства» -->
+<div class="rage-vignette" aria-hidden="true"></div>
 
 <div class="toast" id="toast" hidden></div>
 
@@ -1391,13 +1460,13 @@ const CONFIG = {
   startTeeth: 0,
   startButtons: 0,
   baseClickPower: 1,
-  priceGrowth: 1.15,          // множитель цены за каждую покупку (без престижа)
-  priceGrowthPerRebirth: 0.01,
+  priceGrowth: 1.75,          // каждый следующий уровень «Дохода за клик» и «Пассивного дохода» ×1.75
+  priceGrowthPerRebirth: 0,   // престиж удорожание не меняет: строго ×1.75
   skillBasePrice: 100,         // ветка улучшений за пуговицы: цена Lv.1
   skillPriceGrowth: 2.5,       // каждый следующий уровень навыка ×2.5 // +0.01 к удорожанию за каждый уровень престижа (1.16, 1.17 … 1.25)
   levelsPerStage: 10,         // уровней в одном этапе инструмента
-  stageEvolveMult: 2,         // множитель силы клика при эволюции
-  milestones: [10, 25, 50, 100], // покупки помощника, на которых доход x2
+  stageEvolveMult: 1,         // удвоения при эволюции больше нет (×1 — только смена инструмента)
+  milestones: [],             // удвоений дохода помощников больше нет
   milestoneMult: 2,
   tickMs: 1000,               // период пассивного дохода
   floatLifetimeMs: 900,
@@ -1716,6 +1785,8 @@ const State = {
   skills: { crit: 0, sticky: 0, eye: 0 }, // уровни навыков (0..5)
   collection: {},                      // открытые Фуглеры: { [toyId]: true }
   activeFuggler: null,                 // id Фуглера из коллекции, стоящего на экране (null — Зубастый Бракованец)
+  rageUntil: 0,                        // «Бешенство» действует до этого момента (мс)
+  rageCooldownUntil: 0,                // перезарядка «Бешенства» до этого момента (мс)
   musicVolume: 0.5,                    // громкость фоновой музыки 0..1 (настройка, переживает ребитх и сброс)
   sfxVolume: 0.8,                      // громкость звуков 0..1
   rebirthLevel: 0,                     // уровень престижа
@@ -1727,8 +1798,8 @@ const State = {
 
 /* ---------- 3. ECONOMY ---------- */
 const Economy = {
-  // Прокачка клика бесконечная: после 5 этапов «Челюсть Мегалодона» качается без предела,
-  // каждые 10 её уровней — «заточка», сила клика ×2 (как эволюция на прошлых этапах)
+  // Прокачка клика бесконечная: после 5 этапов «Челюсть Мегалодона» качается без предела.
+  // Каждые 10 уровней меняется инструмент (больше прирост за уровень), удвоений ×2 нет.
   maxClickLevel: Infinity,
   lastStageStart: (TOOLS.length - 1) * CONFIG.levelsPerStage,
 
@@ -1748,10 +1819,10 @@ const Economy = {
     return CONFIG.priceGrowth + CONFIG.priceGrowthPerRebirth * lvl;
   },
 
+  // Цена уровня: каждый следующий ровно в 1.75 раза дороже предыдущего — сквозь все инструменты,
+  // без предела по уровню (иначе при эволюции цена падала бы до базовой цены нового инструмента)
   clickPrice(level = State.clickLevel) {
-    const stage = this.stageOf(level);
-    const inStage = level - stage * CONFIG.levelsPerStage;   // на последнем этапе растёт без предела
-    const price = Math.ceil(TOOLS[stage].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), inStage));
+    const price = Math.round(TOOLS[0].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), level));
     return Number.isFinite(price) ? price : Infinity;
   },
 
@@ -1770,7 +1841,7 @@ const Economy = {
   // --- Помощники ---
   // Цена: базовая * 1.15^(куплено)
   helperPrice(i, owned = State.helpers[i]) {
-    return Math.ceil(HELPERS[i].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), owned));
+    return Math.round(HELPERS[i].basePrice * this.priceMult() * Math.pow(this.priceGrowth(), owned));
   },
 
   // Множитель от майлстоунов: x2 за каждый достигнутый порог
@@ -1935,7 +2006,7 @@ const UI = {
   renderDeals() {
     if (!this.dealBtns) {
       this.dealBtns = {};
-      ['clickPower', 'passive', 'tree', 'cases'].forEach((k) => {
+      ['clickPower', 'passive', 'tree', 'cases', 'rage'].forEach((k) => {
         this.dealBtns[k] = document.querySelector(`.card-btn[data-menu="${k}"]`);
       });
     }
@@ -1944,6 +2015,7 @@ const UI = {
       passive: HELPERS.some((_, i) => State.teeth >= Economy.helperPrice(i)),
       tree: SKILLS.some((s) => State.skills[s.id] < s.levels.length && State.buttons >= Economy.skillPrice(s.id)),
       cases: CASES.some((c) => State[c.currency] >= c.price),
+      rage: Rage.ready(),
     };
     Object.entries(deals).forEach(([k, on]) => this.dealBtns[k]?.classList.toggle('has-deal', on));
   },
@@ -1952,7 +2024,7 @@ const UI = {
     Save.saveSoon?.();
     // Пометка о подорожании прокачки из-за престижа
     const pm = Economy.priceMult();
-    const note = pm > 1 ? ` · Престиж: цены ×${this.formatMult(pm)}, удорожание ×${this.formatMult(Economy.priceGrowth())} за уровень` : '';
+    const note = pm > 1 ? ` · Престиж: цены ×${this.formatMult(pm)}` : '';
     document.querySelectorAll('[data-price-note]').forEach((el) => { if (el.textContent !== note) el.textContent = note; });
     this.renderMonster();
     this.renderDeals();
@@ -2033,6 +2105,12 @@ const Effects = {
     }
   },
 
+  // Лёгкая тряска на тап во время «Бешенства»
+  rageShake() {
+    const stage = document.querySelector('.stage');
+    stage.classList.remove('rage-tap'); void stage.offsetWidth; stage.classList.add('rage-tap');
+  },
+
   // Короткая тряска сцены при крите
   shake() {
     const stage = document.querySelector('.stage');
@@ -2065,7 +2143,7 @@ const Actions = {
   clickMonster(x, y) {
     // 1) Критический укус: шанс из навыка, крит = clickPower * 5
     const isCrit = Math.random() < Economy.critChance();
-    const gain = isCrit ? State.clickPower * CONFIG.critMultiplier : State.clickPower;
+    const gain = (isCrit ? State.clickPower * CONFIG.critMultiplier : State.clickPower) * Rage.mult();   // «Бешенство» ×2
 
     // 2) Дроп пуговицы: шанс из навыка «Липкие руки» (база 2%)
     const gotButton = Math.random() < Economy.buttonChance();
@@ -2085,6 +2163,7 @@ const Actions = {
     Effects.squish(UI.el.monster);
     Effects.chips(x, y, isCrit ? 9 : 2);       // осколки зубов (на крите — фонтан)
     if (isCrit) Effects.shake();
+    else if (Rage.isActive()) Effects.rageShake();   // лёгкая тряска на каждый тап во время «Бешенства»
   },
 
   // ШАГ 1. Купить кейс: списать цену и ЗАРАНЕЕ определить приз (редкость → игрушка).
@@ -2168,9 +2247,7 @@ const Actions = {
     // Эволюция: только что закрыли 10-й уровень этапа
     if (State.clickLevel % CONFIG.levelsPerStage === 0) {
       const next = TOOLS[prevStage + 1];
-      UI.showToast(next
-        ? `Эволюция! ${TOOLS[prevStage].name} → ${next.name}. Сила клика ×2`
-        : `${TOOLS[prevStage].name}: заточка! Сила клика ×2`);
+      if (next) UI.showToast(`Эволюция! ${TOOLS[prevStage].name} → ${next.name}: +${UI.format(next.perLevel)} к клику за уровень`);
     }
   },
 
@@ -2181,9 +2258,6 @@ const Actions = {
     State.helpers[i]++;
     Economy.recalc();
     UI.render();
-    if (CONFIG.milestones.includes(State.helpers[i])) {
-      UI.showToast(`${HELPERS[i].name}: ${State.helpers[i]} шт. Доход навсегда ×2!`);
-    }
   },
 };
 
@@ -2490,8 +2564,6 @@ const Modals = {
     const fm = (x) => '×' + UI.formatMult(x);
     document.getElementById('rbPrices').textContent = next
       ? `${fm(Economy.priceMult(lvl))} → ${fm(Economy.priceMult(lvl + 1))}` : fm(Economy.priceMult(lvl));
-    document.getElementById('rbGrowth').textContent = next
-      ? `${fm(Economy.priceGrowth(lvl))} → ${fm(Economy.priceGrowth(lvl + 1))}` : fm(Economy.priceGrowth(lvl));
     document.getElementById('rbBtn').textContent =
       `+${pct(Economy.rebirthButtonBonus(lvl))} → +${pct(Economy.rebirthButtonBonus(lvl + 1))}`;
     document.getElementById('rbCases').textContent = State.secretCasesOpened;
@@ -2530,7 +2602,6 @@ const Modals = {
       const done = i < curStage, current = i === curStage, locked = i > curStage;
       const endless = i === last;                 // последний этап — без предела
       const inStage = done ? per : current ? lvl - i * per : 0;
-      const toX2 = per - (inStage % per);          // уровней до следующего ×2
       card.classList.toggle('is-done', done);
       card.classList.toggle('is-current', current);
       card.classList.toggle('is-locked', locked);
@@ -2543,14 +2614,14 @@ const Modals = {
         f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
         f.next.textContent = '+' + UI.format(gain) + ' к клику';
         f.note.textContent = endless
-          ? (toX2 === 1 ? 'Следующий уровень: заточка, сила ×2!' : `До заточки ×2: ${toX2} ур.`)
-          : (inStage === per - 1 ? 'Следующий уровень: эволюция, сила ×2!' : `До эволюции: ${per - inStage} ур.`);
+          ? 'Качается без предела'
+          : (inStage === per - 1 ? `Следующий уровень: эволюция в «${TOOLS[i + 1].name}»` : `До эволюции: ${per - inStage} ур.`);
         f.price.textContent = UI.format(price);
         f.buy.disabled = State.teeth < price;
       } else if (done) {
         f.gain.textContent = '+' + UI.format(TOOLS[i].perLevel) + ' / уровень';
         f.next.textContent = '—';
-        f.note.textContent = 'Пройдено · ×2 получен';
+        f.note.textContent = 'Пройдено';
         f.price.textContent = 'Готово';
         f.buy.disabled = true;
       } else {
@@ -2574,17 +2645,13 @@ const Modals = {
       // На карточках доход уже с множителем коллекции
       const income = Economy.helperIncome(i) * cm;
       const gain = Economy.helperIncome(i, owned + 1) * cm - income;
-      const nextM = Economy.nextMilestone(owned);
-      const prevM = [...CONFIG.milestones].reverse().find((m) => m <= owned) ?? 0;
 
       card.classList.toggle('is-current', owned > 0);
-      f.level.textContent = owned + ' шт.' + (Economy.helperMult(owned) > 1 ? ` (×${Economy.helperMult(owned)})` : '');
+      f.level.textContent = owned + ' шт.';
       f.gain.textContent = UI.format(income) + ' / сек';
       f.next.textContent = '+' + UI.format(gain) + ' / сек';
-      f.bar.style.width = nextM ? ((owned - prevM) / (nextM - prevM) * 100) + '%' : '100%';
-      f.note.textContent = nextM
-        ? (nextM - owned === 1 ? 'Следующая покупка: доход ×2!' : `До ×2: ${nextM - owned} шт. (на ${nextM}-й)`)
-        : 'Все майлстоуны собраны';
+      f.bar.parentElement.hidden = true;           // полоски до ×2 больше нет — удвоений нет
+      f.note.textContent = owned > 0 ? 'Покупка без предела' : '';
       f.price.textContent = UI.format(price);
       f.buy.disabled = State.teeth < price;
     });
@@ -2736,6 +2803,7 @@ const Menu = {
     passive:    () => Modals.open('passive'),
     tree:       () => Modals.open('tree'),
     settings:   () => Modals.open('settings'),
+    rage:       () => Rage.start(),   // реклама → клик ×2 на 60 сек
     // Своё окно подтверждения вместо confirm(): внутри артефакта confirm() не показывается
     reset:      () => Modals.open('reset'),
     rebirth:    () => Modals.open('rebirth'),
@@ -2891,6 +2959,8 @@ function buildGameState() {
     musicVolume: State.musicVolume,
     sfxVolume: State.sfxVolume,
     activeFuggler: State.activeFuggler,
+    rageUntil: State.rageUntil,
+    rageCooldownUntil: State.rageCooldownUntil,
     rebirthButtonBonus: Economy.rebirthButtonBonus(),
   };
 
@@ -2940,6 +3010,9 @@ function applyGameState(gs) {
     ids.forEach((id) => { if (TOYS.some((t) => t.id === id)) State.collection[id] = true; });
   }
   // Фуглер на экране: только если он есть в коллекции
+  // «Бешенство»: перезагрузка страницы не сбрасывает ни буст, ни перезарядку
+  if (num(gs.rageUntil) !== null) State.rageUntil = Math.min(gs.rageUntil, Date.now() + RAGE.durationMs);
+  if (num(gs.rageCooldownUntil) !== null) State.rageCooldownUntil = Math.min(gs.rageCooldownUntil, Date.now() + RAGE.durationMs + RAGE.cooldownMs);
   State.activeFuggler = typeof gs.activeFuggler === 'string' && State.collection[gs.activeFuggler]
     ? gs.activeFuggler : null;
 
@@ -3018,6 +3091,7 @@ const Save = {
     State.skills = { crit: 0, sticky: 0, eye: 0 };
     State.collection = {};
     State.activeFuggler = null;
+    State.rageUntil = 0; State.rageCooldownUntil = 0;
     State.rebirthLevel = 0;
     State.secretCasesOpened = 0;
     Modals.pendingResult = null;
@@ -3043,6 +3117,7 @@ function start(saved, fromHot = false) {
   UI.render();           // обновить весь интерфейс под загруженные данные
   applyVolumes();        // громкость музыки и звуков из сохранения
   Music.unlockOnFirstTap();
+  Rage.run();            // продолжить буст или перезарядку после перезагрузки
   Loop.start();
   GoldenButton.schedule();
   Save.startAutosave();
@@ -3240,6 +3315,77 @@ const Ads = {
     Actions.addButtons(ADS_REWARD_BUTTONS);
     UI.showToast(`+${ADS_REWARD_BUTTONS} пуговиц за просмотр рекламы`);
     Save.saveGame();
+  },
+};
+
+/* ---------- 15b. RAGE: «Бешенство» — реклама за клик ×2 на 60 секунд ----------
+   После буста — перезарядка 3 минуты. Время хранится в сохранении (моменты окончания),
+   поэтому перезагрузка страницы не даёт включить буст без перерыва. */
+const RAGE = { durationMs: 60 * 1000, cooldownMs: 3 * 60 * 1000, mult: 2 };
+const Rage = {
+  timer: null,
+  wasActive: false,
+  isActive() { return Date.now() < State.rageUntil; },
+  onCooldown() { return !this.isActive() && Date.now() < State.rageCooldownUntil; },
+  ready() { return !this.isActive() && !this.onCooldown(); },
+  mult() { return this.isActive() ? RAGE.mult : 1; },
+  mmss(ms) {
+    const sec = Math.ceil(ms / 1000);
+    return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  },
+
+  async start() {
+    if (this.isActive()) { UI.showToast('Бешенство уже идёт — кликай!'); return; }
+    if (this.onCooldown()) { UI.showToast(`Бешенство перезаряжается: ${this.mmss(State.rageCooldownUntil - Date.now())}`); return; }
+    const ok = await Ads.showRewarded();          // AdsGram в Telegram, SDK в Яндекс Играх
+    if (!ok) {
+      if (!(window.__AD_NETWORK === 'adsgram' && !AdController)) UI.showToast('Бешенство включается за полный просмотр рекламы');
+      return;
+    }
+    const now = Date.now();
+    State.rageUntil = now + RAGE.durationMs;
+    State.rageCooldownUntil = State.rageUntil + RAGE.cooldownMs;
+    playSound(soundUI);
+    UI.showToast('БЕШЕНСТВО! Клик ×2 на 60 секунд');
+    Save.saveGame();
+    this.run();
+  },
+
+  // Тикает, пока идёт буст или перезарядка
+  run() {
+    this.update();
+    if (this.timer) return;
+    this.timer = setInterval(() => {
+      this.update();
+      if (this.ready()) { clearInterval(this.timer); this.timer = null; }
+    }, 250);
+  },
+
+  update() {
+    const btn = document.getElementById('rageBtn');
+    const t = document.getElementById('rageTimer');
+    if (!btn || !t) return;
+    const now = Date.now();
+    const active = this.isActive(), cd = this.onCooldown();
+    document.body.classList.toggle('rage-on', active);
+    btn.classList.toggle('rage-active', active);
+    btn.classList.toggle('rage-cooldown', cd);
+    if (active) {
+      t.hidden = false;
+      t.textContent = Math.ceil((State.rageUntil - now) / 1000) + ' с';
+    } else if (cd) {
+      t.hidden = false;
+      t.textContent = '⏳ ' + this.mmss(State.rageCooldownUntil - now);
+    } else {
+      t.hidden = true;
+      t.textContent = '';
+    }
+    if (this.wasActive && !active) {
+      UI.showToast('Бешенство закончилось. Перезарядка 3 минуты');
+      UI.render();
+    }
+    if (this.wasActive !== active) UI.renderDeals();
+    this.wasActive = active;
   },
 };
 
