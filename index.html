@@ -3391,7 +3391,7 @@ const Rage = {
    Помощники работают и без игрока, но вполсилы; реклама удваивает награду. */
 const Offline = {
   EFFICIENCY: 0.5,              // 50% от обычного пассивного дохода
-  MAX_SEC: 8 * 3600,            // копится не больше 8 часов
+  MAX_SEC: 2 * 3600,            // копится не больше 2 часов
   MIN_SEC: 60,                  // меньше минуты — не считаем
   pending: 0,
 
@@ -3414,7 +3414,7 @@ const Offline = {
       return;
     }
     this.pending = amount;
-    document.getElementById('offTime').textContent = this.duration(s) + (sec > this.MAX_SEC ? ' (максимум 8 ч)' : '');
+    document.getElementById('offTime').textContent = this.duration(s) + (sec > this.MAX_SEC ? ' (максимум 2 ч)' : '');
     document.getElementById('offAmount').textContent = UI.format(amount);
     document.getElementById('offDouble').textContent = UI.format(amount * 2);
     Modals.open('offline');
